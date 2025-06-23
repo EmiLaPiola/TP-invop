@@ -1,0 +1,517 @@
+\documentclass{article}
+\usepackage{amsmath, amssymb}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{xcolor}
+\usepackage[spanish]{babel}
+\usepackage{tcolorbox} 
+\definecolor{violetClarito}{RGB}{230, 220, 255}
+\usepackage{graphicx}
+\usepackage{float}
+
+
+\begin{document}
+
+% --- CARÁTULA ---
+\begin{titlepage}
+    \centering
+    \vspace*{1cm}
+
+    % LOGO
+
+
+
+    \vspace*{1.5cm}
+    
+    {\Huge \textbf{Trabajo Práctico Número 2} \\[0.5cm]
+    \LARGE Investigación Operativa \\[0.5cm]
+    \Large \textbf{Programación Lineal Entera} \par}
+    
+    \vspace{2cm}
+    
+    {\Large \textbf{Autores:} \par}
+    {\large María Emilia Jalil \par}
+    {\large Fiorella Stefanini \par}
+    {\large Ana Antonic \par}
+
+    \vspace{3cm}
+
+    \includegraphics[width=0.4\textwidth]{UBA.svg.png}
+    
+    \vfill
+    
+    {\large Junio 2025 \par}
+\end{titlepage}
+
+
+% Índice
+\tableofcontents
+\newpage
+
+
+\begin{tcolorbox}[colback=gray!20!white, colframe=black, boxrule=0.5pt, left=4pt, right=4pt, top=6pt, bottom=6pt]
+\centering
+\Large \textbf{Idea general del Trabajo Práctico}
+\end{tcolorbox}
+
+\vspace{0.3cm}
+
+En este trabajo práctico buscamos modelar y resolver un problema de distribución de productos mediante PLE, comparando dos métodos de repartición:
+
+\vspace{0.3cm}
+
+\begin{itemize}
+    \item \textbf{TSP clásico :} el camión visita a todos los clientes y realiza todas las entregas.
+    \item \textbf{TSP modificado :} el camión hace algunas paradas que le podrían llegar a ser convenientes, en donde algunos clientes serán atendidos por repartidores a pie o en bicicleta desde esas paradas.
+\end{itemize}
+
+\vspace{0.4cm}
+
+El objetivo es minimizar el costo total de distribución para ambos modelos y concluir si el modelo modificado es mas eficiente que el TSP original.
+
+\vspace{0.6cm}
+
+\underline{\textbf{Costos considerados en el modelo:}}
+
+\vspace{0.2cm}
+
+\begin{itemize}
+    \item Costos de traslado del camión entre domicilios.
+    \item Costos asociados a los repartidores a pie/bicicleta contratados.
+\end{itemize}
+
+\vspace{0.5cm}
+
+\underline{\textbf{Restricciones obligatorias del modelo:}}
+
+\vspace{0.2cm}
+
+\begin{itemize}
+    \item Cada cliente debe ser atendido exactamente una vez.
+    \item Un repartidor solo puede atender a clientes que estén dentro de una distancia máxima ($d_{\text{max}}$) desde la parada del camión.
+    \item Un repartidor no puede realizar más de una entrega de productos refrigerados.
+\end{itemize}
+
+\vspace{0.5cm}
+
+\underline{\textbf{Restricciones deseables (no obligatorias):}}
+
+\vspace{0.2cm}
+
+
+\begin{itemize}
+    \item Cada repartidor activo debe realizar al menos 4 entregas.
+    \item Algunos clientes deben ser atendidos únicamente por el camión.
+\end{itemize}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+\newpage
+
+
+\section*{Metodología actual: TSP clásico}
+
+Modelamos la situación en la cual solo el camión visita a todos los clientes y realiza todas las entregas. Este problema se corresponde con el clásico Problema del Viajante (TSP), donde buscamos minimizar el costo total de recorrido del camión.
+
+\vspace{0.4cm}
+
+\subsection*{Variables de decisión}
+
+\begin{itemize}
+    \item \( x_{ij} \in \{0,1\} \): indica si el camión viaja directamente desde el cliente \( i \) al cliente \( j \), con \( i \neq j \) y \( i, j \in \{1,\ldots,n\} \).
+    \item \( u_i \in \mathbb{Z} \): orden en el que se visita el cliente \( i \), para \( i = 2, \ldots, n \). Se fija \( u_1 = 1 \) como nodo inicial del recorrido.
+\end{itemize}
+
+\vspace{0.1cm}
+
+\subsection*{Función objetivo}
+\vspace{0.1cm}
+\begin{center}
+\fcolorbox{black}{violetClarito}{
+\parbox{0.9\linewidth}{
+\[
+\min \sum_{i=1}^n \sum_{\substack{j=1 \\ i \neq j}}^{n}c_{ij} \cdot x_{ij}
+\]
+}}
+\end{center}
+
+\vspace{0.1cm}
+
+\subsection*{Restricciones}
+
+\begin{enumerate}
+    \item \textbf{Entrada única:} cada cliente debe ser visitado exactamente una vez:
+    \[
+    \sum_{\substack{i=1 \\ i \neq j}}^{n} x_{ij} = 1, \quad \forall j = 1,\ldots,n
+    \]
+
+    \item \textbf{Salida única:} cada cliente debe salir hacia un único destino:
+    \[
+    \sum_{\substack{j=1 \\ j \neq i}}^{n} x_{ij} = 1, \quad \forall i = 1,\ldots,n
+    \]
+
+    \item \textbf{Eliminación de subtours (formulación MTZ):}
+    \begin{itemize}
+        \item Se fija el orden de inicio (suponemos que es el depósito):
+        \[
+        u_1 = 1
+        \]
+        \item Acotamos el orden de visita:
+        \[
+        1 \leq u_i \leq n, \quad \forall i = 2, \ldots, n
+        \]
+        \item Imponemos las restricciones de eliminación de subtours para \( i,j \in \{2,\ldots,n\},\ i \neq j \):
+        \[
+        u_i - u_j + n \cdot x_{ij} \leq n - 1
+        \]
+    \end{itemize}
+
+    \item \textbf{Condiciones de integridad:}
+    \[
+    x_{ij} \in \{0,1\}, \quad u_i \in \mathbb{Z}, \quad \forall i,j = 1, \ldots, n,\ i \neq j
+    \]
+\end{enumerate}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+\section{Formulación del modelo modificado de PLE  }
+
+\subsection{Variables de decisión}
+\vspace{0.3cm}
+
+\begin{itemize}
+    \item \( x_{ij} \in \{0,1\} \): indica si el camión viaja directamente desde la casa \( i \) a la casa \( j \) (\( i \neq j \)).
+    \begin{itemize}
+        \item \( x_{ij} = 1 \) significa que el camión se mueve de \( i \) a \( j \).
+        \item \( x_{ij} = 0 \) significa que no hay viaje directo entre \( i \) y \( j \).
+        \item \( i, j = 1, \ldots, n \), con \( i \neq j \).
+    \end{itemize}
+
+    \vspace{0.3cm}
+    
+        \item \( x_i \in \{0,1\} \): indica si el camión hace parada en la casa \( i \).
+    \begin{itemize}
+        \item \( x_i = 1 \) si el camión visita la casa \( i \).
+        \item \( x_i = 0 \) en caso contrario.
+        \item \( i = 1, \ldots, n \).
+    \end{itemize}
+
+    \vspace{0.3cm}
+
+    \item \( \delta_{ij} \in \{0,1\} \): indica si el pedido de la casa \( j \) es entregado por un repartidor que lo levanta en la casa \( i \) . ACLARACION: Asumimos que todos los pedidos que se levantan en la casa i los hace el mismo repartidor.
+    \begin{itemize}
+        \item \( \delta_{ij} = 1 \) significa que el pedido de la casa \( j \) es entregado por un repartidor que sale desde \( i \) .
+        \item \( \delta_{ij} = 0 \) en caso contrario.
+        \item \( i, j= 1, \ldots, n \) , con \( i \neq j \).
+    \end{itemize}
+
+    \vspace{0.3cm}
+   
+        \item \( \delta_{i} \in \{0,1\} \): indica si el pedido de la casa \( i \) es entregado por un repartidor.
+    \begin{itemize}
+        \item \( \delta_{i} = 1 \) significa que el pedido de la casa \( i \) es entregado por un repartidor.
+        \item \( \delta_{i} = 0 \) en caso contrario.
+        \item \( i= 1, \ldots, n \).
+    \end{itemize}
+
+
+    \vspace{0.3cm}
+
+        \vspace{0.3cm}
+    
+    \item \( u_i \in \mathbb{Z} \): representa el orden de visita del camión al nodo \( i \), utilizado para eliminar subtours en el recorrido (formulación MTZ).
+    \begin{itemize}
+        \item Si el camión no visita la casa \( i \), entonces \( u_i = 0 \).
+        \item Si el camión visita la casa \( i \), entonces \( u_i \in \{1, \ldots, n\} \).
+        \item Se asume que el depósito corresponde al nodo inicial con \( u_0 = 0 \).
+        \item \( i = 1, \ldots, n \).
+    \end{itemize}
+
+\vspace{0.3cm}
+
+
+
+
+
+    
+
+\end{itemize}
+
+
+\subsection{Parámetros del modelo}
+
+\begin{itemize}
+    \item \( d_{ij} \): distancia entre las casas \( i \) y \( j \).
+    \item \( \text{d\_max} \): distancia máxima que puede haber entre la casa donde el camón deja un pedido, y la casa donde un repartidor hace la entrega.
+    \item \( c_{ij} \): costo de transporte del camión desde \( i \) a \( j \).
+    \item \( \text{costo\_repartidor} \): costo por cada entrega a pie o bicicleta.
+    
+    \item \text{refrigerados} $\subseteq \{1,\dots,n\}$: conjunto de clientes que requieren productos refrigerados.
+
+    
+    \item \( \text{clientes\_oblig\_camion} \subseteq \{1,\ldots,n\} \): conjunto de clientes que deben ser atendidos por el camión.
+    \item \( n \): cantidad total de clientes.
+\end{itemize}
+
+\subsection{Función objetivo}
+
+
+ \vspace*{0.4cm}
+
+\noindent
+\fcolorbox{black}{violetClarito}{%
+  \parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule}{%
+    \[
+    \min \sum_{i=1}^{n} \sum_{\substack{j=1 \\ j \ne i}}^{n} c_{ij} \cdot x_{ij} 
+    + \text{costo\_repartidor} \cdot \sum_{i=1}^{n} \delta_i
+    \]
+  }%
+}
+
+
+ \vspace*{0.5cm}
+ 
+La idea es minimizar el costo total del servicio de pedidos. Esta función objetivo se compone en dos partes: la primera sumatoria se refiere a todos los costos de los trayectos reales que hace el camión según el recorrido elegido, la segunda, al total que se paga por las entregas hechas por repartidores.
+
+
+
+
+
+
+
+\subsection{Restricciones}
+
+\vspace{0.2cm}
+
+\noindent\colorbox{violetClarito}{\textbf{1. Cada cliente debe ser atendido una única vez:}}
+
+\vspace{0.2cm}
+
+Estos pueden ser atendidos por el camión, o también por un repartidor, pero no por ambos.
+\[
+x_i + \delta_i = 1, \quad \forall i = 1, \ldots, n
+\]
+
+\vspace{0.2cm}
+
+\noindent\colorbox{violetClarito}{\textbf{2. El camión debe entrar y salir solo una vez de las casas que sí visita.}}
+
+\vspace{0.3cm}
+
+
+Si el camión visita la casa \( i \), debe entrar y salir solo una vez de esa casa.  
+Como las variables \( x_i \) son binarias, el valor \( x_i = 1 \) indica que el camión visita la casa \( i \), mientras que \( x_i = 0 \) indica que no lo hace. Para modelar esto planteamos dos sumatorias que representan las entradas y salidas del camión:
+
+\vspace{0.3cm}
+
+\[
+\sum_{\substack{j=1 \\ j \neq i}}^{n} x_{ij} = x_i
+\]
+Esta sumatoria cuenta la cantidad de veces que el camión sale desde la casa \( i \) hacia cualquier otra casa \( j \). Si el camión visita la casa \( i \), esta suma debe ser 1 (una única salida), en caso contrario, debe ser 0.
+
+\vspace{0.3cm}
+
+\[
+\sum_{\substack{j=1 \\ j \neq i}}^{n} x_{ji} = x_i
+\]
+
+Esta sumatoria representa la cantidad de veces que el camión llega a la casa \( i \) desde alguna otra casa \( j \). De nuevo, si la casa \( i \) es visitada, debe haber una única entrada, si no, la suma será 0.
+
+\vspace{0.3cm}
+
+Estas dos restricciones nos aseguran que si el camión visita una casa \( i \), entonces entra una vez y sale una vez de ella, y si no la visita, entonces no entra ni sale. 
+
+
+\vspace{0.6cm}
+
+
+\noindent\colorbox{violetClarito}{\textbf{3. Relación entre las casas a las que llegan y las que salen repartidores.}}
+
+
+\vspace{0.2cm}
+
+Recordamos que:
+\begin{itemize}
+    \item \( \delta_{ij} = 1 \) si un repartidor que salió desde la casa \( i \) entrega un pedido en la casa \( j \).
+    \item \( \delta_j = 1 \) si la casa \( j \) fue atendida por un repartidor.
+\end{itemize}
+
+\vspace{0.3cm}
+
+Entonces, si un cliente \( j \) fue atendido por un repartidor, debe existir exactamente una casa \( i \) desde donde haya salido ese repartidor para entregarle el pedido. Es decir, la suma de todas las posibles entregas hacia \( j \), hechas desde otras casas \( i \), debe ser igual a \( \delta_j \).
+
+\[
+\sum_{\substack{i = 1 \\ i \ne j}}^{n} \delta_{ij} = \delta_j, \quad \forall j = 1, \ldots, n
+\]
+
+Esta restricción asegura coherencia entre las variables: si \( \delta_j = 1 \), entonces exactamente una variable \( \delta_{ij} \) debe ser igual a 1 (alguien le entregó a \( j \)); y si \( \delta_j = 0 \), entonces ninguna entrega puede haber sido realizada por un repartidor hacia \( j \).
+
+\vspace{0.3cm}
+
+
+
+\noindent\colorbox{violetClarito}{\textbf{4. Límite de distancia para repartidores}}
+
+\vspace{0.2cm}
+
+\[
+\delta_{ij} \cdot d_{ij} \leq d\_max \cdot x_{i} \quad \forall i, j = 1, \ldots, n \quad i \neq j
+\]
+
+
+Esta restricción garantiza que un repartidor solo pueda entregar a la casa \( j \) habiendo levantado el pedido desde la casa \( i \), si el camión hizo parada en i, y la distancia entre estas casas es mas chica que \( d\_max \).
+
+
+\vspace{0.4cm}
+
+
+\noindent\colorbox{violetClarito}{\textbf{5. Restricciones de productos refrigerados por repartidor}}
+
+\vspace{0.2cm}
+
+
+Sea \(\text{refrigerados} \subseteq \{1, \ldots, n\}\) el conjunto de casas que requieren productos refrigerados, la cantidad máxima de estos productos que puede entregar un repartidor que sale de la casa \( i \) es 1.
+
+\[
+\sum_{\substack{j \in \text{refrigerados} \\ j \neq i}} \delta_{ij} \leq 1, \quad \forall i = 1, \ldots, n
+\]
+
+
+
+\vspace{0.3cm}
+
+\noindent\colorbox{violetClarito}{\textbf{6. Restricciones de eliminación de subtours para el camión:}}
+
+\vspace{0.3cm}
+
+
+Definimos de nodo de inicio del recorrido para el camión el supuesto depósito, que llamaremos nodo cero. 
+
+\vspace{0.3cm}
+
+Para asegurar que estas variables solo tomen valores positivos cuando el nodo \( i \) es efectivamente visitado por el camión (es decir, \( x_i = 1 \)), imponemos las siguientes restricciones:
+
+\[
+1 \leq u_i \leq n \cdot x_i, \quad \forall i = 1, \ldots, n
+\]
+
+Esta cota superior garantiza que \( u_i = 0 \) si el nodo \( i \) no es visitado (\( x_i = 0 \)), y que \( u_i \in [1, n] \) si el nodo es parte del recorrido.
+
+\vspace{0.3cm} 
+
+Además para \( i, j \in \{1, \ldots, n\},\ i \neq j \) planteamos :
+
+\[
+u_i - u_j + n \cdot x_{ij} \leq n - 1 + M \cdot (1 - x_i)
+\]
+
+\vspace{0.2cm}
+
+Donde \( M \) es una constante suficientemente grande (por ejemplo, \( M = n \)) que permite relajar la restricción cuando el camión no visita el nodo \( i \) (\( x_i = 0 \)). Esta variante modificada de las restricciones MTZ no permite la aparición de subtours entre las casas visitadas por el camión.
+
+
+
+\newpage
+
+\begin{tcolorbox}[colback=pink!10!white, colframe=pink!10!black, title=""]
+\subsection*{Restricciones extras deseables}
+
+\end{tcolorbox}
+
+\vspace{0.3cm}
+
+\paragraph{1. Mínimo de 4 pedidos por repartidor activo :}
+Proponemos una variable auxiliar \( z_i \), que indica si se levantan pedido en i para repartir en bici/a a pie o no.
+
+\begin{itemize}
+    \item \( z_i \in \{0,1\} \), para \( i = 1, \ldots, n \), vale 1 si se levantan pedidos en la casa i, 0 en caso contrario.
+\end{itemize}
+
+ Como asumimos que todos los pedidos que se levantan en la casa i los hace el mismo repartidor sabemos que la suma de los \( \delta_{ij} \) sobre j tiene que ser al menos 4 o 0. En el caso de que sean al menos 4 sabemos que necesariamente tiene que haber pasado el camion por la casa i.
+
+\[
+4 \cdot z_i \leq \sum_{\substack{j=1 \\ j \neq i}}^{n} \delta_{ij} \leq M \cdot z_i, \quad 
+\forall i = 1, \ldots, n
+\]
+
+Nuevamente utilizamos una \( M\) grande, como \( M = n \)
+
+\[
+z_i \leq  x_i \quad \forall i = 1, \ldots, n
+\]
+
+Si el camión no pasa por \( i \) entonces \( z_i \) debe ser cero, es decir que ningun repartidor puede levantar pedidos en \( i \).
+
+
+\paragraph{2. Clientes obligatorios con camión :}
+
+Hay algunos clientes que sólo pueden ser atendidos por el camión, sin opción de ser atendidos por repartidores a pie o bicicleta. A estos los denominamos \textit{clientes exclusivos}. Para que se cumpla esta condición, imponemos las siguientes restricciones:
+
+\begin{itemize}
+    \item El camión debe visitar obligatoriamente a cada cliente exclusivo:
+    \[
+    x_i = 1 \quad \forall i \in \text{exclusivos}
+    \]
+
+\end{itemize}
+
+
+
+
+
+
+
+
+
+
+
+\paragraph{Condiciones de integridad}
+
+\[
+x_{ij},\ x_{i},\ \delta_{ij},\ \delta_{i},\, \in \{0,1\},\quad u_i \in \mathbb{Z},\quad \forall i,j = 1, \ldots, n,\ i \neq j
+\]
+
+
+
+\newpage
+\section*{Resultados Computacionales}
+
+
+
+
+
+
+\end{document}
+
