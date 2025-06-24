@@ -78,8 +78,16 @@ def agregar_variables(prob, instancia):
     tipos = []
     lb = []
     ub = []
+    
+    # Las variables que tenemos son 
+    # x_ij 
+    # xi 
+    # δij 
+    # δi
+    # ui 
+    # z_i
 
-    # Variables x_ij: si el camión va de i a j
+    # variables x_ij: si el camión va de i a j
     
     for i in range(n):
         for j in range(n):
@@ -90,7 +98,7 @@ def agregar_variables(prob, instancia):
                 lb.append(0.0)
                 ub.append(1.0)
 
-    # Variables xi: si el camión para en i
+    # variables xi: si el camión para en i
     
     for i in range(n):
         nombres.append(f"x_{i}")
@@ -99,7 +107,7 @@ def agregar_variables(prob, instancia):
         lb.append(0.0)
         ub.append(1.0)
 
-    # Variables δij: si un repartidor desde i entrega a j
+    # variables δij: si un repartidor desde i entrega a j
     
     for i in range(n):
         for j in range(n):
@@ -110,7 +118,7 @@ def agregar_variables(prob, instancia):
                 lb.append(0.0)
                 ub.append(1.0)
 
-    # Variables δi: si el cliente i es atendido por repartidor
+    # variables δi: si el cliente i es atendido por repartidor
     
     for i in range(n):
         nombres.append(f"delta_{i}")
@@ -119,7 +127,7 @@ def agregar_variables(prob, instancia):
         lb.append(0.0)
         ub.append(1.0)
 
-    # Variables ui: orden de visita del camión
+    # variables ui: orden de visita del camión
     
     for i in range(n):
         nombres.append(f"u_{i}")
@@ -128,7 +136,7 @@ def agregar_variables(prob, instancia):
         lb.append(0.0)
         ub.append(float(n))  # Máximo orden posible
         
-    # Variables z_i: si hay repartidores activos desde i
+    # variables z_i: si hay repartidores activos desde i
     
     for i in range(n):
         nombres.append(f"z_{i}")
@@ -138,7 +146,7 @@ def agregar_variables(prob, instancia):
         ub.append(1.0)
     
 
-    # Agregar todas las variables
+    # agregamos todas las variables
     prob.variables.add(obj=coef_obj, lb=lb, ub=ub, types=tipos, names=nombres)
 
 
@@ -357,6 +365,7 @@ def mostrar_solucion(prob, instancia):
     print("\n Fin de la solución.\n")
     
 
+
 def main():
     
     # Lectura de datos desde el archivo de entrada
@@ -376,6 +385,7 @@ def main():
     
     
 
-
 if __name__ == '__main__':
     main()
+
+
