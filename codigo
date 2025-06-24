@@ -269,6 +269,14 @@ def agregar_restricciones(prob, instancia):
                 senses.append("L")
                 rhs.append(n - 1)
                 nombres.append(f"mtz_{i}_{j}")
+                
+    # Fijamos el valor de u_0 (depósito) en 0 para que las MTZ funcionen correctamente
+    prob.linear_constraints.add(
+        lin_expr=[[[f"u_0"], [1.0]]],
+        senses=["E"],
+        rhs=[0.0],
+        names=["fijar_u0"]
+    )
     
     
     # RESTRICCIONES DESEABLES : 
