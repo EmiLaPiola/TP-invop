@@ -1,0 +1,86 @@
+import sys
+#importamos el modulo cplex
+import cplex
+
+
+## vamos con los casos de test 
+
+
+import numpy as np
+import matplotlib.pyplot as plt
+import random
+np.random.seed(42)  
+
+
+# Primero generamos una grilla 300 de coordenadas en R2 para representar las casas . Tomamos el (500,500) como el deposit ( justo el medio) 
+# y generamos numeros randoms de una grilla de 1000 x 1000
+# tomamos como distancias entre las casas la distancia euclideana 
+# El costo de ir de una casa a la otra será la distancia que hay entre ellas 
+
+
+# Luego construimos la matriz COSTOS que va a tener en la coordenada ij el costo que hay para ir de la casa i a la casa j 
+# que va a ser la distancia entre las casas 
+
+num_puntos = 300
+limite_grilla = 1000
+
+x = np.random.randint(0, limite_grilla, size=num_puntos)
+y = np.random.randint(0, limite_grilla, size=num_puntos)
+
+# El depósito está en el centro
+deposito = (500, 500)
+
+# Lista de clientes con sus coordenadas
+clientes = [(0, deposito)] + [(i + 1, (x[i], y[i])) for i in range(num_puntos)]
+
+# Mostrar lista de clientes
+for id_cliente, coord in clientes:
+    print(f"Cliente {id_cliente}: {coord}")
+
+# Matriz de costos (distancias euclideanas)
+n = len(clientes)
+costos = np.zeros((n, n))
+
+for i in range(n):
+    for j in range(n):
+        xi, yi = clientes[i][1]
+        xj, yj = clientes[j][1]
+        distancia = np.sqrt((xi - xj)**2 + (yi - yj)**2)
+        costos[i][j] = round(distancia, 2)  # redondeo porque sino quedan numeros horribles 
+
+
+# graficamos la grilla de puntos 
+
+plt.figure(figsize=(8, 8))
+plt.scatter(x, y, color='blue', s=30, label='Clientes')
+plt.scatter(*deposito, color='red', s=60, label='Depósito')
+
+plt.xlim(0, limite_grilla)
+plt.ylim(0, limite_grilla)
+plt.gca().set_aspect('equal', adjustable='box')
+plt.title('Ubicación de los clientes')
+plt.xlabel('Coordenada X')
+plt.ylabel('Coordenada Y')
+plt.grid(True)
+plt.legend()
+plt.show()
+
+
+# Entonces como los parametros del modelo son : 
+# 1) las distancias entre las casas que las tenemos con la matriz de costos 
+# 2) dmax a eleccion 
+# 3) cij el costo para ir de la casa i a la casa j que lo sacamos de la matriz de costos 
+# 4) costo_repartidor a eleccion tambien 
+# 5) refrigerados a eleccion 
+# 6) clientes_oblig_camion tambien a eleccion 
+# 7) cantidad total de clientes ( 300 por ahora)
+
+# Parámetros que me faltan crear 
+
+costo_repartidor = 50
+d_max = 150
+total_clientes = 300
+
+# Elegimos 30 clientes únicos al azar para cada conjunto
+refrigerados = random.sample(range(1, total_clientes + 1), 30)
+exclusivos = random.sample(range(1, total_clientes + 1), 30)
