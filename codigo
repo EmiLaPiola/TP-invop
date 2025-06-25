@@ -1,84 +1,52 @@
+
 import sys
-#importamos el modulo cplex
+from itertools import product
 import cplex
 
-TOLERANCE =10e-6 
+TOLERANCE = 1e-6
 
 # ESTE SERIA EL MODELO MODIFICADO 
 # Para correr el TSP comun corremos este pero fijamos las variables de los repartidores en cero.
-
-TOLERANCE =10e-6 
-
+ 
 class InstanciaRecorridoMixto:
     def __init__(self):
-        self.cant_clientes = 0
+        self.cantidad_clientes = 0
         self.costo_repartidor = 0
         self.d_max = 0
         self.refrigerados = []
         self.exclusivos = []
-        self.distancias = []        
-        self.costos = []        
+        self.distancias = []
+        self.costos = []
 
-    def leer_datos(self,filename):
-        # abrimos el archivo de datos
-        f = open(filename)
+    def leer_datos(self, filename):
+        with open(filename) as f:
+            self.cantidad_clientes = int(f.readline())
+            self.costo_repartidor = int(f.readline())
+            self.d_max = int(f.readline())
 
-        # leemos la cantidad de clientes
-        self.cantidad_clientes = int(f.readline())
-        # leemos el costo por pedido del repartidor
-        self.costo_repartidor = int(f.readline())
-        # leemos la distamcia maxima del repartidor
-        self.d_max = int(f.readline())
-        
-        # inicializamos distancias y costos con un valor muy grande (por si falta algun par en los datos)
-        self.distancias = [[1000000 for _ in range(self.cantidad_clientes)] for _ in range(self.cantidad_clientes)]
-        self.costos = [[1000000 for _ in range(self.cantidad_clientes)] for _ in range(self.cantidad_clientes)]
-        
-        # leemos la cantidad de refrigerados
-        cantidad_refrigerados = int(f.readline())
-        # leemos los clientes refrigerados
-        for i in range(cantidad_refrigerados):
-            self.refrigerados.append(int(f.readline()))
-        
-        # leemos la cantidad de exclusivos
-        cantidad_exclusivos = int(f.readline())
-        # leemos los clientes exclusivos
-        for i in range(cantidad_exclusivos):
-            self.exclusivos.append(int(f.readline()))
-        
-        # leemos las distancias y costos entre clientes
-        lineas = f.readlines()
-        for linea in lineas:
-            row = list(map(int,linea.split(' ')))
-            self.distancias[row[0]-1][row[1]-1] = row[2]
-            self.distancias[row[1]-1][row[0]-1] = row[2]
-            self.costos[row[0]-1][row[1]-1] = row[3]
-            self.costos[row[1]-1][row[0]-1] = row[3]
-        
-        # cerramos el archivo
-        f.close()
+            self.distancias = [[1000000 for _ in range(self.cantidad_clientes)] for _ in range(self.cantidad_clientes)]
+            self.costos = [[1000000 for _ in range(self.cantidad_clientes)] for _ in range(self.cantidad_clientes)]
+
+            cantidad_refrigerados = int(f.readline())
+            self.refrigerados = [int(f.readline()) - 1 for _ in range(cantidad_refrigerados)]
+
+            cantidad_exclusivos = int(f.readline())
+            self.exclusivos = [int(f.readline()) - 1 for _ in range(cantidad_exclusivos)]
+
+            for linea in f:
+                i, j, d, c = map(int, linea.strip().split())
+                self.distancias[i - 1][j - 1] = d
+                self.distancias[j - 1][i - 1] = d
+                self.costos[i - 1][j - 1] = c
+                self.costos[j - 1][i - 1] = c
 
 def cargar_instancia():
-    # El 1er parametro es el nombre del archivo de entrada
     nombre_archivo = sys.argv[1].strip()
-    # Crea la instancia vacia
     instancia = InstanciaRecorridoMixto()
-    # Llena la instancia con los datos del archivo de entrada 
     instancia.leer_datos(nombre_archivo)
     return instancia
 
 
-def agregar_variables(prob, instancia):
-    
-    n = instancia.cantidad_clientes
-    costo_repartidor = instancia.costo_repartidor
-    
-    nombres = []
-    coef_obj = []
-    tipos = []
-    lb = []
-    ub = []
-    
     # Las variables que tenemos son 
     # x_ij 
     # xi 
@@ -88,79 +56,51 @@ def agregar_variables(prob, instancia):
     # z_i
 
     # variables x_ij: si el camión va de i a j
-    
+
+def agregar_variables(prob, instancia):
+    n = instancia.cantidad_clientes
+    xij, xi, dij, di, ui = [], [], [], [], []
+
+    nombres, costos, tipos = [], [], []
+
     for i in range(n):
         for j in range(n):
             if i != j:
                 nombres.append(f"x_{i}_{j}")
-                coef_obj.append(instancia.costos[i][j])
-                tipos.append("B")  # binaria
-                lb.append(0.0)
-                ub.append(1.0)
+                costos.append(instancia.costos[i][j])
+                tipos.append("B")
+                xij.append((i, j))
 
-    # variables xi: si el camión para en i
-    
     for i in range(n):
         nombres.append(f"x_{i}")
-        coef_obj.append(0.0)
+        costos.append(0)
         tipos.append("B")
-        lb.append(0.0)
-        ub.append(1.0)
+        xi.append(i)
 
-    # variables δij: si un repartidor desde i entrega a j
-    
     for i in range(n):
         for j in range(n):
             if i != j:
                 nombres.append(f"delta_{i}_{j}")
-                coef_obj.append(0.0)  # No entra directo en obj, lo hace δi
+                costos.append(0)
                 tipos.append("B")
-                lb.append(0.0)
-                ub.append(1.0)
+                dij.append((i, j))
 
-    # variables δi: si el cliente i es atendido por repartidor
-    
     for i in range(n):
         nombres.append(f"delta_{i}")
-        coef_obj.append(costo_repartidor)
+        costos.append(instancia.costo_repartidor)
         tipos.append("B")
-        lb.append(0.0)
-        ub.append(1.0)
+        di.append(i)
 
-    # variables ui: orden de visita del camión
-    
     for i in range(n):
         nombres.append(f"u_{i}")
-        coef_obj.append(0.0)
-        tipos.append("I")  # Entera
-        lb.append(0.0)
-        ub.append(float(n))  # Máximo orden posible
-        
-    # variables z_i: si hay repartidores activos desde i
-    
-    for i in range(n):
-        nombres.append(f"z_{i}")
-        coef_obj.append(0.0)
-        tipos.append("B")
-        lb.append(0.0)
-        ub.append(1.0)
+        costos.append(0)
+        tipos.append("I")
+        ui.append(i)
+
+    prob.variables.add(obj=costos, types=tipos, names=nombres)
     
 
-    # agregamos todas las variables
-    prob.variables.add(obj=coef_obj, lb=lb, ub=ub, types=tipos, names=nombres)
-
-
-def agregar_restricciones(prob, instancia):
-    n = instancia.cantidad_clientes
-    nombres_vars = prob.variables.get_names()
-
-    constraints = []
-    senses = []
-    rhs = []
-    nombres = []
-    
-    
-    # RESTRICCIONES : 
+   # RESTRICCIONES : 
     
     # 1) cada cliente debe ser atendido solo una vez 
     # 2) El camiión debe entrar y salir solo una vez de las casas que si visita.
@@ -176,224 +116,129 @@ def agregar_restricciones(prob, instancia):
     
     
 
-    # 1) cada cliente debe ser atendido solo una vez 
+    # 1) cada cliente debe ser atendido solo una vez  
+    # EXCLUIMOS el nodo 0 (depósito) 
     
+
+
+def agregar_restricciones(prob, instancia):
+    n = instancia.cantidad_clientes
+    restricciones, sentidos, rhs, nombres = [], [], [], []
+
+    # 1. Cada cliente atendido una única vez
     for i in range(n):
-        xi = f"x_{i}"
-        delta_i = f"delta_{i}"
-        constraints.append([ [xi, delta_i], [1.0, 1.0] ])
-        senses.append("E")
+        restricciones.append([[f"x_{i}", f"delta_{i}"], [1.0, 1.0]])
+        sentidos.append("E")
         rhs.append(1.0)
         nombres.append(f"atencion_unica_{i}")
 
-    # 2) El camiión debe entrar y salir solo una vez de las casas que si visita.
-    
+    # 2. Entrada y salida del camión por nodo visitado
     for i in range(n):
-        # salida
-        indices_salida = [f"x_{i}_{j}" for j in range(n) if j != i]
-        valores = [1.0] * len(indices_salida)
-        indices_salida.append(f"x_{i}")
-        valores.append(-1.0)
-        constraints.append([indices_salida, valores])
-        senses.append("E")
-        rhs.append(0.0)
-        nombres.append(f"salida_unica_{i}")
+        salida = [f"x_{i}_{j}" for j in range(n) if j != i]
+        entrada = [f"x_{j}_{i}" for j in range(n) if j != i]
+        restricciones.append([salida, [1.0]*len(salida)])
+        sentidos.append("E")
+        rhs.append(1.0)
+        nombres.append(f"salida_camion_{i}")
 
-        # entrada
-        indices_entrada = [f"x_{j}_{i}" for j in range(n) if j != i]
-        valores = [1.0] * len(indices_entrada)
-        indices_entrada.append(f"x_{i}")
-        valores.append(-1.0)
-        constraints.append([indices_entrada, valores])
-        senses.append("E")
-        rhs.append(0.0)
-        nombres.append(f"entrada_unica_{i}")
-    
-    # 3) Relación entre las casas a las que llegan y las que salen repartidores
-    
+        restricciones.append([entrada, [1.0]*len(entrada)])
+        sentidos.append("E")
+        rhs.append(1.0)
+        nombres.append(f"entrada_camion_{i}")
+
+    # 3. Relación delta_{ij} con delta_j
     for j in range(n):
-    
         indices = [f"delta_{i}_{j}" for i in range(n) if i != j]
-        valores = [1.0] * len(indices)
-        indices.append(f"delta_{j}")
-        valores.append(-1.0)
-        constraints.append([indices, valores])
-        senses.append("E")
+        restricciones.append([indices + [f"delta_{j}"], [1.0]*len(indices) + [-1.0]])
+        sentidos.append("E")
         rhs.append(0.0)
         nombres.append(f"relacion_delta_{j}")
-        
-    # 4) Límite de distancia para repartidores
-    
-    for i in range(n):
-        for j in range(n):
-            if i != j:
-                nombre_var_delta = f"delta_{i}_{j}"
-                nombre_var_xi = f"x_{i}"
-                dij = instancia.distancias[i][j]
-                if dij <= instancia.d_max:
-                    constraints.append([[nombre_var_delta, nombre_var_xi], [dij, -instancia.d_max]])
-                    senses.append("L")
-                    rhs.append(0.0)
-                    nombres.append(f"limite_distancia_{i}_{j}")
-                else:
-                    # No se puede entregar si la distancia es mayor al dmax
-                    # Forzamos delta_{i}_{j} = 0
-                    constraints.append([[nombre_var_delta], [1.0]])
-                    senses.append("E")
-                    rhs.append(0.0)
-                    nombres.append(f"fuera_rango_{i}_{j}")
-    
-    # 5) Refrigerados: máximo uno por repartidor
-    
+
+    # 4. Distancia máxima del repartidor
+    for i, j in product(range(n), repeat=2):
+        if i != j:
+            restricciones.append([[f"delta_{i}_{j}", f"x_{i}"], [instancia.distancias[i][j], -instancia.d_max]])
+            sentidos.append("L")
+            rhs.append(0.0)
+            nombres.append(f"dist_max_{i}_{j}")
+
+    # 5. Productos refrigerados (solo uno por repartidor)
     for i in range(n):
         indices = [f"delta_{i}_{j}" for j in instancia.refrigerados if j != i]
-        if indices:
-            valores = [1.0] * len(indices)
-            constraints.append([indices, valores])
-            senses.append("L")
-            rhs.append(1.0)
-            nombres.append(f"refrigerados_max1_{i}")
-                    
-    
-    # 6) MTZ modificada
-    
-    M = n
-    for i in range(n):
-        for j in range(n):
+        restricciones.append([indices, [1.0]*len(indices)])
+        sentidos.append("L")
+        rhs.append(1.0)
+        nombres.append(f"refrigerado_{i}")
+
+    # 6. Subtours - MTZ
+    for i in range(1, n):
+        restricciones.append([[f"u_{i}"], [1.0]])
+        sentidos.append("G")
+        rhs.append(1.0)
+        nombres.append(f"ui_lb_{i}")
+
+        restricciones.append([[f"u_{i}", f"x_{i}"], [1.0, -n]])
+        sentidos.append("L")
+        rhs.append(0.0)
+        nombres.append(f"ui_ub_{i}")
+
+    for i in range(1, n):
+        for j in range(1, n):
             if i != j:
-                ui = f"u_{i}"
-                uj = f"u_{j}"
-                xij = f"x_{i}_{j}"
-                xi = f"x_{i}"
-                constraints.append([[ui, uj, xij, xi], [1.0, -1.0, n, -M]])
-                senses.append("L")
+                restricciones.append([[f"u_{i}", f"u_{j}", f"x_{i}_{j}"], [1.0, -1.0, n]])
+                sentidos.append("L")
                 rhs.append(n - 1)
                 nombres.append(f"mtz_{i}_{j}")
-                
-    # Fijamos el valor de u_0 (depósito) en 0 para que las MTZ funcionen correctamente
-    prob.linear_constraints.add(
-        lin_expr=[[[f"u_0"], [1.0]]],
-        senses=["E"],
-        rhs=[0.0],
-        names=["fijar_u0"]
-    )
-    
-    
-    # RESTRICCIONES DESEABLES : 
-    
-    # 7)  MÍnimo de pedidos por repartidor activo
-    # 8)  Clientes obligatorios con camion.  
-    
-    # 7) Mínimo de 4 entregas por repartidor activo (deseable)
-    for i in range(n):
-        zi = f"z_{i}"  # asegurate que estas existan como variables binarias
-        deltaij = [f"delta_{i}_{j}" for j in range(n) if j != i]
 
-        # Lado izquierdo >= 4 * zi
-        constraints.append([[zi] + deltaij, [-4.0] + [1.0] * len(deltaij)])
-        senses.append("G")
-        rhs.append(0.0)
-        nombres.append(f"min4_repartos_{i}")
-
-        # Lado derecho <= M * zi
-        constraints.append([[zi] + deltaij, [-n] + [1.0] * len(deltaij)])
-        senses.append("L")
-        rhs.append(0.0)
-        nombres.append(f"max_repartos_{i}")
-
-        # zi <= xi
-        constraints.append([[zi, f"x_{i}"], [1.0, -1.0]])
-        senses.append("L")
-        rhs.append(0.0)
-        nombres.append(f"zi_le_xi_{i}")
-        
-    # 8) Clientes que deben ser visitados por el camión
-    
+    # 7. Exclusivos: deben ser visitados por el camión
     for i in instancia.exclusivos:
-        constraints.append([[f"x_{i}"], [1.0]])
-        senses.append("E")
+        restricciones.append([[f"x_{i}"], [1.0]])
+        sentidos.append("E")
         rhs.append(1.0)
-        nombres.append(f"cliente_exclusivo_{i}")
-        
-    # Agregamos las restricciones al modelo
-        
-    prob.linear_constraints.add(lin_expr=constraints, senses=senses, rhs=rhs, names=nombres)
+        nombres.append(f"exclusivo_{i}")
 
+    # 8. El camión debe salir y volver al nodo 0
+    restricciones.append([[f"x_0_{j}" for j in range(1, n)], [1.0]*(n-1)])
+    sentidos.append("E")
+    rhs.append(1.0)
+    nombres.append("salida_deposito")
 
+    restricciones.append([[f"x_{j}_0" for j in range(1, n)], [1.0]*(n-1)])
+    sentidos.append("E")
+    rhs.append(1.0)
+    nombres.append("entrada_deposito")
 
+    prob.linear_constraints.add(lin_expr=[cplex.SparsePair(ind=ind, val=val) for ind, val in restricciones],
+                                senses=sentidos, rhs=rhs, names=nombres)
 
 def armar_lp(prob, instancia):
-
-    # Agregar las variables
     agregar_variables(prob, instancia)
-   
-    # Agregar las restricciones 
     agregar_restricciones(prob, instancia)
-
-    # Setear el sentido del problema
     prob.objective.set_sense(prob.objective.sense.minimize)
-
-    # Escribir el lp a archivo
-    prob.write('recorridoMixto.lp')
+    prob.write("modelo.lp")
 
 def resolver_lp(prob):
-    
-    #  Resuelve el modelo usando CPLEX.
-    # Configura parámetros opcionales para limitar tiempo y ver más salida.
-    
-
-    # Parámetros útiles (opcionales)
-    prob.parameters.timelimit.set(60)  # Limita a 60 segundos de resolución
-    prob.parameters.mip.tolerances.mipgap.set(0.01)  # Gap del 1%
-    prob.parameters.output.clonelog.set(1)  # Logeo en consola (útil para debug)
-
-    print("Resolviendo el modelo...\n")
+    prob.parameters.timelimit.set(60)
+    prob.parameters.mip.tolerances.mipgap.set(0.01)
+    print("Resolviendo el modelo...")
     prob.solve()
-    
 
 def mostrar_solucion(prob, instancia):
-    TOLERANCE = 1e-6
-
-    # Obtener el estado de la solución
     status = prob.solution.get_status_string()
+    print("Estado de la resolución:", status)
     valor_obj = prob.solution.get_objective_value()
-    print("\n Estado de la resolución:", status)
-    print(" Valor de la función objetivo:", valor_obj)
+    print("Valor de la función objetivo:", valor_obj)
 
-    # Obtener los nombres y valores de las variables
-    nombres = prob.variables.get_names()
-    valores = prob.solution.get_values()
-
-    print("\n Variables activas (valor > tolerancia):")
-
-    for nombre, valor in zip(nombres, valores):
-        if valor > TOLERANCE:
-            print(f"{nombre} = {valor}")
-
-    print("\n Fin de la solución.\n")
-    
-
+    for var_name, var_value in zip(prob.variables.get_names(), prob.solution.get_values()):
+        if var_value > TOLERANCE:
+            print(f"{var_name} = {var_value}")
 
 def main():
-    
-    # Lectura de datos desde el archivo de entrada
     instancia = cargar_instancia()
-    
-    # Definicion del problema de Cplex
     prob = cplex.Cplex()
-    
-    # Definicion del modelo
-    armar_lp(prob,instancia)
-
-    # Resolucion del modelo
+    armar_lp(prob, instancia)
     resolver_lp(prob)
+    mostrar_solucion(prob, instancia)
 
-    # Obtencion de la solucion
-    mostrar_solucion(prob,instancia)
-    
-    
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
-
-
